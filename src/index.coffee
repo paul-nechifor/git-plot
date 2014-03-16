@@ -1,0 +1,1 @@
+exports.GitSearch = require 'GitSearch'

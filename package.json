@@ -1,0 +1,23 @@
+{
+  "name": "git-plot",
+  "version": "0.0.1",
+  "author": "Paul Nechifor <paul@nechifor.net> (http://nechifor.net/)",
+  "main": "./lib",
+  "bin": {
+    "git-plot": "./bin/git-plot.js"
+  },
+  "scripts": {
+    "build": "rm lib/*; coffee --compile --bare --output lib src"
+  },
+  "dependencies": {
+    "nodegit": "^0.1.0",
+    "optimist": "^0.6.1",
+    "findit": "^1.1.1",
+    "json2csv": "^2.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paul-nechifor/git-plot"
+  },
+  "license": "MIT"
+}
