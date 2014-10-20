@@ -35,39 +35,33 @@ module.exports = main = ->
 
   .argv
 
-  if argv.h
-    optimist.showHelp()
-    process.exit()
+  return optimist.showHelp() if argv.h
 
   search = new GitSearch
-  search.searchDir = argv.searchDir if argv.searchDir
-  search.authorRegex = new RegExp argv.authorRegex if argv.authorRegex
-  search.emailRegex = new RegExp argv.emailRegex if argv.emailRegex
-  search.fields = argv.fields.split ',' if typeof(argv.fields) is 'string'
-
+    searchDir: argv.searchDir
+    authorRegex: new RegExp argv.authorRegex
+    emailRegex: new RegExp argv.emailRegex
+    fields: if typeof argv.f is 'string' then argv.f.split ',' else []
   search.search (err) ->
     throw err if err
-    getResults search, argv, (err, output) ->
+    showResults argv.output, argv.outputType, search, (err) ->
       throw err if err
-      if argv.output
-        fs.writeFileSync argv.output, output
-      else
-        console.log output
 
-getResults = (search, argv, cb) ->
-  if argv.outputType is 'json'
-    json = JSON.stringify search.commits, null, '  '
-    return cb null, json
-  else if argv.outputType is 'csv'
-    getCsvResults search, cb
-  else
-    cb 'Unknown output type.'
+showResults = (output, outputType, search, cb) ->
+  makeText outputType, search, (err, text) ->
+    return fs.writeFile output, text, cb if output
+    process.stdout.write text
+    cb()
 
-getCsvResults = (search, cb) ->
+makeText = (outputType, search, cb) ->
+  switch outputType
+    when 'json' then cb null, JSON.stringify search.commits, null, '  '
+    when 'csv' then makeCsvResults search, cb
+    else cb 'Unknown output type.'
+
+makeCsvResults = (search, cb) ->
   json2csv = require 'json2csv'
-  opts =
-    data: search.commits
-    fields: search.fields
-  json2csv opts, (err, csv) ->
-    return cb err if err
-    cb null, csv
+  opts = {data: search.commits, fields: search.opts.fields}
+  if opts.fields.length is 0
+    opts.fields = Object.keys opts.data[0]
+  json2csv opts, cb

@@ -7,10 +7,11 @@
     "git-plot": "./bin/git-plot.js"
   },
   "scripts": {
-    "build": "rm -fr lib; coffee -cbo lib src"
+    "preinstall": "rm -fr lib; coffee -cbo lib src"
   },
   "dependencies": {
     "async": "^0.9.0",
+    "coffee-script": "^1.8.0",
     "findit": "^1.2.0",
     "json2csv": "^2.2.1",
     "nodegit": "^0.1.4",

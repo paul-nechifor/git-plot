@@ -6,10 +6,12 @@ String::endsWith = (suffix) ->
   return @indexOf(suffix, @length - suffix.length) isnt -1
 
 module.exports = class GitSearch
-  constructor: (@searchDir = '/home', @authorRegex = /.*/, emailRegex = /.*/) ->
+  constructor: (@opts) ->
     @commits = []
+    @ids = {}
     @repoDirs = []
-    @fields = []
+    @keepField = {}
+    @keepField[f] = true for f in @opts.fields
 
   search: (cb) ->
     async.series [
@@ -19,27 +21,21 @@ module.exports = class GitSearch
     ].map((f) => f.bind(@)), cb
 
   findRepos: (cb) ->
-    finder = findit @searchDir
+    finder = findit @opts.searchDir
     finder.on 'directory', (dir, stat, stop) =>
       if dir.endsWith '/.git'
         stop()
         @repoDirs.push dir
-    finder.on 'end', cb
+    finder.on 'end', (err) =>
+      return cb err if err
+      console.error "Found #{@repoDirs.length} repos."
+      cb()
 
   pushReposCommits: (cb) ->
     async.map @repoDirs, @pushRepoCommits.bind(@), cb
 
   orderResults: (cb) ->
     @commits.sort (a, b) -> a.date - b.date
-    return cb() if @fields.length is 0
-
-    keep = {}
-    keep[field] = true for field in @fields
-    @commits.map (c) ->
-      for key of c
-        delete c[key] unless keep[key]
-      return c
-
     cb()
 
   pushRepoCommits: (repoDir, cb) ->
@@ -47,10 +43,8 @@ module.exports = class GitSearch
       return cb err if err
       # TODO Search all the branches.
       repo.getMaster (err, branch) =>
-        if branch
-          @pushBranchCommits branch, cb
-        else
-          cb()
+        return cb() unless branch
+        @pushBranchCommits branch, cb
 
   pushBranchCommits: (branch, cb) ->
     returned = false
@@ -58,14 +52,13 @@ module.exports = class GitSearch
       return if returned
       cb err
 
-    herstory = branch.history() # Ban sexists functions! :)
-    herstory.on 'commit', (commit) =>
+    branch.history() # Ban sexists functions! :)
+    .on 'commit', (commit) =>
       @processCommit commit, (err, commitInfo) =>
         ret err if err
         @commits.push commitInfo if commitInfo
-    herstory.on 'end', ->
-      ret()
-    herstory.start()
+    .on 'end', -> ret()
+    .start()
 
   processCommit: (commit, cb) ->
     commitInfo =
@@ -77,11 +70,17 @@ module.exports = class GitSearch
       added: 0
       deleted: 0
 
-    return cb() unless commitInfo.author.match @authorRegex
-    return cb() unless commitInfo.email.match @emailRegex
+    return cb() unless commitInfo.author.match @opts.authorRegex
+    return cb() unless commitInfo.email.match @opts.emailRegex
 
-    @setChanges commit, commitInfo, (err) ->
+    if @opts.fields.length > 0
+      for key of commitInfo
+        delete commitInfo[key] unless @keepField[key]
+
+    @setChanges commit, commitInfo, (err) =>
       return cb err if err
+      return cb() if @ids[commit.sha()]
+      @ids[commit.sha()] = commitInfo
       cb null, commitInfo
 
   setChanges: (commit, commitInfo, cb) ->

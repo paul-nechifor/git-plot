@@ -18,17 +18,9 @@ See the help for more:
 
 ## For development
 
-You need CoffeeScript. Install it:
-
-    sudo npm install -g coffee-script
-
-Download the dependencies:
+Get the repo and install the requirements locally:
 
     npm install
-
-Build it:
-
-    npm run-script build
 
 Run it:
 
