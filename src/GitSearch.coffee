@@ -8,9 +8,6 @@ class GitSearch
   constructor: (@searchDir = '/home', @authorRegex = /.*/, emailRegex = /.*/) ->
     @commits = []
     @repoDirs = []
-    # There's an ugly bug when GCing a patch (possibly by double free in libgit2).
-    # I keep all the patches alive until the program stops.
-    @preventGC = []
     @fields = []
 
   search: (cb) ->
@@ -98,7 +95,6 @@ class GitSearch
         continue if difflist.size() is 0
         patches = (difflist.patch(i).patch for i in [0..difflist.size()-1])
         for patch in patches
-          @preventGC.push patch
           stats = patch.stats()
           commitInfo.added += stats.total_additions
           commitInfo.deleted += stats.total_deletions
