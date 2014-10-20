@@ -2,7 +2,7 @@ fs = require 'fs'
 optimist = require 'optimist'
 GitSearch = require './GitSearch'
 
-main = ->
+module.exports = main = ->
   argv = optimist
   .usage 'Usage: $0 [-s <searchDir>]'
 
@@ -71,5 +71,3 @@ getCsvResults = (search, cb) ->
   json2csv opts, (err, csv) ->
     return cb err if err
     cb null, csv
-
-module.exports = main

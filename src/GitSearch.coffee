@@ -1,30 +1,22 @@
-git = require 'nodegit'
+async = require 'async'
 findit = require 'findit'
+git = require 'nodegit'
 
 String::endsWith = (suffix) ->
   return @indexOf(suffix, @length - suffix.length) isnt -1
 
-class GitSearch
+module.exports = class GitSearch
   constructor: (@searchDir = '/home', @authorRegex = /.*/, emailRegex = /.*/) ->
     @commits = []
     @repoDirs = []
     @fields = []
 
   search: (cb) ->
-    @findRepos (err) =>
-      return cb err if err
-      @pushReposCommits =>
-        @commits.sort (a, b) -> a.date - b.date
-        return cb() if @fields.length is 0
-
-        keep = {}
-        keep[field] = true for field in @fields
-        @commits.map (c) ->
-          for key of c
-            delete c[key] unless keep[key]
-          return c
-
-        cb()
+    async.series [
+      @findRepos
+      @pushReposCommits,
+      @orderResults
+    ].map((f) => f.bind(@)), cb
 
   findRepos: (cb) ->
     finder = findit @searchDir
@@ -32,18 +24,23 @@ class GitSearch
       if dir.endsWith '/.git'
         stop()
         @repoDirs.push dir
-    finder.on 'end', ->
-      cb()
+    finder.on 'end', cb
 
   pushReposCommits: (cb) ->
-    i = 0
-    next = =>
-      return cb() if i >= @repoDirs.length
-      @pushRepoCommits @repoDirs[i], (err) ->
-        throw err if err
-        i++
-        next()
-    next()
+    async.map @repoDirs, @pushRepoCommits.bind(@), cb
+
+  orderResults: (cb) ->
+    @commits.sort (a, b) -> a.date - b.date
+    return cb() if @fields.length is 0
+
+    keep = {}
+    keep[field] = true for field in @fields
+    @commits.map (c) ->
+      for key of c
+        delete c[key] unless keep[key]
+      return c
+
+    cb()
 
   pushRepoCommits: (repoDir, cb) ->
     git.Repo.open repoDir, (err, repo) =>
@@ -99,5 +96,3 @@ class GitSearch
           commitInfo.added += stats.total_additions
           commitInfo.deleted += stats.total_deletions
       cb()
-
-module.exports = GitSearch
